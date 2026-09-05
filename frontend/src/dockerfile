@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package configuration files
+COPY package*.json ./
+
+# Install dependencies inside the container
+RUN npm install
+
+# Copy frontend source code
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]
