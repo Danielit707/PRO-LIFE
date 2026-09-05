@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -15,7 +16,8 @@ from sqlalchemy.orm import Session
 
 from .db import SessionLocal, init_db, ping_db, upsert_pdb_index, upsert_structure
 from .ml.pipeline import gnn_pipeline
-from .models import PdbIndex, Structure
+from .ml.sequence_model import SequenceRejuvenationModel, default_artifact_path, sequence_features
+from .models import ModelRun, PdbIndex, Prediction, Structure, TrainingExample
 
 RCSB_PDB_URL = "https://files.rcsb.org/download/{code}.pdb"
 PDB_ID_RE = re.compile(r"^[A-Za-z0-9]{4}$")
@@ -30,6 +32,37 @@ class ProteinCoords(BaseModel):
 
 class GnnInferRequest(BaseModel):
     coordinates: list[list[float]] = Field(min_length=1)
+
+
+class TrainingExampleInput(BaseModel):
+    protein_id: str = Field(min_length=1, max_length=32)
+    sequence: str = Field(min_length=1)
+    organism: str | None = None
+    cell_type: str | None = None
+    tissue: str | None = None
+    assay: str = Field(min_length=1, max_length=128)
+    outcome: float = Field(ge=0.0, le=1.0)
+    toxicity: float = Field(default=0.0, ge=0.0, le=1.0)
+    evidence_quality: float = Field(default=1.0, ge=0.0, le=1.0)
+    source: str = Field(min_length=1, max_length=255)
+
+
+class TrainingExamplesRequest(BaseModel):
+    examples: list[TrainingExampleInput] = Field(min_length=1)
+
+
+class CandidateInput(BaseModel):
+    protein_id: str = Field(min_length=1, max_length=32)
+    sequence: str = Field(min_length=1)
+
+
+class CandidateRankRequest(BaseModel):
+    candidates: list[CandidateInput] = Field(min_length=1)
+
+
+def _model_data(model: BaseModel) -> dict[str, Any]:
+    dump = getattr(model, "model_dump", None)
+    return dump() if dump else model.dict()
 
 
 @asynccontextmanager
@@ -202,3 +235,126 @@ def list_structures(limit: int = 50) -> dict[str, Any]:
 @app.post("/api/v1/gnn/infer")
 def gnn_infer(payload: GnnInferRequest) -> dict[str, Any]:
     return gnn_pipeline.infer(payload.coordinates)
+
+
+@app.post("/api/v1/training/examples")
+def add_training_examples(payload: TrainingExamplesRequest) -> dict[str, Any]:
+    session = SessionLocal()
+    try:
+        for example in payload.examples:
+            sequence_features(example.sequence)
+        rows = [
+            TrainingExample(**_model_data(example))
+            for example in payload.examples
+        ]
+        session.add_all(rows)
+        session.commit()
+        return {"added": len(rows)}
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail=f"Training examples were not saved: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/training/run")
+def run_training() -> dict[str, Any]:
+    session = SessionLocal()
+    try:
+        rows = session.query(TrainingExample).order_by(TrainingExample.id.asc()).all()
+        artifact_path = default_artifact_path()
+        version = datetime.now(timezone.utc).strftime("baseline-%Y%m%d%H%M%S%f")
+        model = SequenceRejuvenationModel()
+        metrics = model.fit(
+            [
+                {
+                    "sequence": row.sequence,
+                    "outcome": row.outcome,
+                    "toxicity": row.toxicity,
+                    "evidence_quality": row.evidence_quality,
+                }
+                for row in rows
+            ],
+            version,
+        )
+        model.save(artifact_path)
+        run = ModelRun(
+            version=version,
+            example_count=len(rows),
+            metrics=metrics,
+            artifact_path=str(artifact_path),
+        )
+        session.add(run)
+        session.commit()
+        return {
+            "version": version,
+            "example_count": len(rows),
+            "metrics": metrics,
+            "artifact_path": str(artifact_path),
+        }
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Training failed: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.post("/api/v1/candidates/rank")
+def rank_candidates(payload: CandidateRankRequest) -> dict[str, Any]:
+    model = SequenceRejuvenationModel(str(default_artifact_path()))
+    try:
+        ranked = [
+            {"protein_id": candidate.protein_id, **model.predict(candidate.sequence)}
+            for candidate in payload.candidates
+        ]
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    ranked.sort(key=lambda candidate: float(candidate["ranking_score"]), reverse=True)
+    return {"model_version": model.version, "candidates": ranked}
+
+
+@app.post("/api/v1/feedback")
+def add_experiment_feedback(payload: TrainingExampleInput) -> dict[str, Any]:
+    """Record a reviewed experimental result for the next training run."""
+    session = SessionLocal()
+    try:
+        sequence_features(payload.sequence)
+        row = TrainingExample(**_model_data(payload))
+        session.add(row)
+        session.commit()
+        return {"accepted": True, "training_example_id": row.id}
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        session.rollback()
+        raise HTTPException(status_code=409, detail=f"Feedback was not saved: {exc}") from exc
+    finally:
+        session.close()
+
+
+@app.get("/api/v1/training/runs")
+def list_training_runs(limit: int = 20) -> dict[str, Any]:
+    session = SessionLocal()
+    try:
+        rows = session.query(ModelRun).order_by(ModelRun.created_at.desc()).limit(min(limit, 100)).all()
+        return {
+            "runs": [
+                {
+                    "version": row.version,
+                    "exampleCount": row.example_count,
+                    "metrics": row.metrics,
+                    "artifactPath": row.artifact_path,
+                    "createdAt": row.created_at.isoformat() if row.created_at else None,
+                }
+                for row in rows
+            ]
+        }
+    finally:
+        session.close()
