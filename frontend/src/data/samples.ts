@@ -1,0 +1,57 @@
+import { SampleStructure } from '../types';
+
+export const SAMPLE_STRUCTURES: SampleStructure[] = [
+  {
+    id: '1crn',
+    name: 'Crambin (1CRN)',
+    description: 'High-resolution plant seed protein (46 residues, 327 atoms).',
+    pdbId: '1CRN',
+  },
+  {
+    id: '1ubq',
+    name: 'Ubiquitin (1UBQ)',
+    description: 'Highly conserved regulatory protein in eukaryotes (76 residues, 602 atoms).',
+    pdbId: '1UBQ',
+  },
+  {
+    id: 'helix',
+    name: 'Synthetic Alpha Helix',
+    description: 'Idealized poly-alanine alpha-helical backbone coordinates.',
+    sampleCoords: [
+      [0.0, 0.0, 0.0],
+      [1.3, 1.1, 1.5],
+      [2.3, -0.4, 3.0],
+      [1.4, -2.1, 4.5],
+      [-0.5, -2.3, 6.0],
+      [-2.1, -1.0, 7.5],
+      [-2.1, 1.1, 9.0],
+      [-0.7, 2.3, 10.5],
+      [1.2, 2.0, 12.0],
+      [2.3, 0.4, 13.5],
+      [1.9, -1.5, 15.0],
+      [0.2, -2.4, 16.5],
+      [-1.6, -1.8, 18.0],
+      [-2.3, -0.2, 19.5],
+      [-1.5, 1.8, 21.0],
+    ],
+  },
+  {
+    id: 'cage',
+    name: 'Icosahedral Molecular Cage',
+    description: 'Symmetric cluster vertices benchmark for centroid precision.',
+    sampleCoords: [
+      [0.0, 1.0, 1.618],
+      [0.0, -1.0, 1.618],
+      [0.0, 1.0, -1.618],
+      [0.0, -1.0, -1.618],
+      [1.0, 1.618, 0.0],
+      [-1.0, 1.618, 0.0],
+      [1.0, -1.618, 0.0],
+      [-1.0, -1.618, 0.0],
+      [1.618, 0.0, 1.0],
+      [1.618, 0.0, -1.0],
+      [-1.618, 0.0, 1.0],
+      [-1.618, 0.0, -1.0],
+    ],
+  },
+];

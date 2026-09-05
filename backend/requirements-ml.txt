@@ -1,0 +1,3 @@
+# Optional extras for a trained GNN later. Not installed in the default image.
+torch
+torch-geometric

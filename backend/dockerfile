@@ -1,25 +1,19 @@
 FROM python:3.11-slim
 
-# Install Linux C++ compilers & build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     g++ \
-    cmake \
-    && rm -rf /var/lib/apt-lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install pybind11 directly in container
-RUN pip install --no-cache-dir pybind11 setuptools uvicorn fastapi
-
-# Copy C++ engine and backend sources
 COPY engine_cpp /app/engine_cpp
 COPY backend /app/backend
 
-# Build C++ binding inside container
 WORKDIR /app/backend
-RUN pip install -e .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir -e .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

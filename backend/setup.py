@@ -1,12 +1,17 @@
-#setup.py
-from setuptools import setup
+from pathlib import Path
+
 from pybind11.setup_helpers import Pybind11Extension, build_ext
+from setuptools import setup
+
+ROOT = Path(__file__).resolve().parent.parent
+ENGINE = ROOT / "engine_cpp"
 
 ext_modules = [
     Pybind11Extension(
         "prolife_engine",
-        ["../engine_cpp/src/geometry.cpp"],
-        include_dirs=["../engine_cpp/include"],
+        [str(ENGINE / "src" / "geometry.cpp")],
+        include_dirs=[str(ENGINE / "include")],
+        cxx_std=17,
     ),
 ]
 
