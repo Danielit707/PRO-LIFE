@@ -6,7 +6,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - API_PROXY_URL=http://backend:8000
 
   backend:
     build:
@@ -14,8 +15,9 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://admin:secretpassword@postgres:5432/pro_life
     volumes:
-      - ./backend:/app/backend
       - ./engine_cpp:/app/engine_cpp
     depends_on:
       - postgres
