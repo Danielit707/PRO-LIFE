@@ -8,7 +8,7 @@ from .models import Base, PdbIndex, Structure
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://prolife:prolife@localhost:5432/pro_life",
+    "postgresql+psycopg2://admin:secretpassword@localhost:5432/pro_life",
 )
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
