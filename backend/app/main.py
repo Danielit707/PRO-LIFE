@@ -84,6 +84,16 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root() -> dict[str, Any]:
+    return {
+        "name": "PRO-LIFE Engine API",
+        "version": "0.1.0",
+        "docs": "/docs",
+        "health": "/api/v1/health",
+    }
+
+
 def _analysis_or_400(coordinates: list[list[float]]) -> dict[str, Any]:
     try:
         return prolife_engine.compute_analysis(coordinates)

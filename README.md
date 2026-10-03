@@ -1,5 +1,7 @@
 # PRO-LIFE
 
+![PRO-LIFE main interface](images/main_section.png)
+
 PRO-LIFE is a research-oriented protein analysis platform. Its long-term purpose
 is to analyze protein structures and sequences, estimate their potential
 relationship to rejuvenation-related outcomes, and eventually suggest promising
@@ -331,6 +333,20 @@ cd D:\proyects2\pro-life
 docker compose up --build
 ```
 
+The first build can take a while because Docker has to download base images,
+install Node and Python dependencies, install native C++ build tools, and build
+the Python/C++ extension. Builds can also be slower than necessary because the
+repository currently has no `.dockerignore` files: the backend build context is
+the repository root, and the frontend build context is the entire frontend
+directory. Changes to backend files can also invalidate the backend dependency
+installation layer.
+
+**Recommended next step:** add root and frontend `.dockerignore` files to keep
+`.git`, `.venv`, `node_modules`, and generated build output out of their build
+contexts, then adjust the backend Dockerfile so dependency installation can be
+cached independently from application source changes. After that, compare a
+clean build with a second build after a small source-only change.
+
 Services:
 
 - Frontend: http://localhost:3000
@@ -338,6 +354,10 @@ Services:
 - FastAPI documentation: http://localhost:8000/docs
 - Health endpoint: http://localhost:8000/api/v1/health
 - PostgreSQL: localhost:5432
+
+The backend root URL (`http://localhost:8000/`) returns API information and
+links to the interactive documentation and health endpoint. Use `/docs` to
+explore and try the API routes.
 
 Useful commands:
 
