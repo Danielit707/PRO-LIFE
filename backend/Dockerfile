@@ -8,11 +8,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY engine_cpp /app/engine_cpp
-COPY backend /app/backend
+COPY backend/requirements.txt /app/backend/requirements.txt
 
 WORKDIR /app/backend
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend /app/backend
+RUN pip install --no-cache-dir --no-deps -e .
 
 EXPOSE 8000
 

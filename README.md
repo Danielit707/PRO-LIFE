@@ -333,19 +333,24 @@ cd D:\proyects2\pro-life
 docker compose up --build
 ```
 
-The first build can take a while because Docker has to download base images,
-install Node and Python dependencies, install native C++ build tools, and build
-the Python/C++ extension. Builds can also be slower than necessary because the
-repository currently has no `.dockerignore` files: the backend build context is
-the repository root, and the frontend build context is the entire frontend
-directory. Changes to backend files can also invalidate the backend dependency
-installation layer.
+The first build can take a while because Docker downloads base images, installs
+Node and Python dependencies, installs native C++ build tools, and compiles the
+Python/C++ extension. Root and frontend `.dockerignore` files exclude local
+environments, dependencies, and generated output from their build contexts.
+The backend Dockerfile installs Python dependencies before copying application
+code so those dependencies can be reused from cache on source-only changes.
 
-**Recommended next step:** add root and frontend `.dockerignore` files to keep
-`.git`, `.venv`, `node_modules`, and generated build output out of their build
-contexts, then adjust the backend Dockerfile so dependency installation can be
-cached independently from application source changes. After that, compare a
-clean build with a second build after a small source-only change.
+For local development, Compose uses its PostgreSQL service by default. To use a
+Neon database instead, copy `.env.example` to `.env` and replace `DATABASE_URL`
+with the PostgreSQL connection string from Neon Console's **Connect** dialog.
+Use the pooled connection string for the application and retain Neon’s
+`sslmode=require` parameter. The connection string contains the host, database
+name, username, and password; treat it as a secret. Keep `.env` untracked and
+never paste the URL or password into issues, commits, or chat. The separate
+Neon AI Gateway credential is not a PostgreSQL database credential.
+
+GitHub Actions runs a Docker Compose smoke test on pushes and pull requests,
+including checks of the backend root and health endpoints.
 
 Services:
 
